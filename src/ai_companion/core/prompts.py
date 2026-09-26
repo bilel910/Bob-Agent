@@ -200,6 +200,7 @@ REGELN FÜR DEN KALENDER:
 1. Die Kalender-Aufgabe hat Vorrang. Erledige sie sofort mit den Tools, ohne Smalltalk davor
    und ohne nach dem Namen des Nutzers zu fragen.
 2. Rechne relative Angaben wie "morgen" oder "nächsten Montag" ausgehend vom aktuellen Datum selbst in ein Datum um.
+   Neue Termine liegen immer in der Zukunft: "am Freitag" heißt der nächste kommende Freitag, nie ein vergangener.
 3. Übergib Zeiten immer im Format YYYY-MM-DDTHH:MM ohne Zeitzone, z. B. 2026-09-28T14:00.
 4. Fehlt nur der Titel, wähle einen passenden. Fehlt die Uhrzeit oder das Datum, rate nicht, sondern frag kurz nach.
 5. Erfinde keine E-Mail-Adressen. Lade nur Personen ein, deren Adresse der Nutzer genannt hat.

@@ -7,8 +7,10 @@ import httpx
 from fastapi import APIRouter, Request, Response
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.types import Command
 
 from ai_companion.graph import graph_builder
+from ai_companion.graph.utils.helpers import get_pending_question
 from ai_companion.modules.image import ImageToText
 from ai_companion.modules.speech import SpeechToText, TextToSpeech
 from ai_companion.settings import settings
@@ -67,21 +69,33 @@ async def whatsapp_handler(request: Request) -> Response:
                 content = message["text"]["body"]
 
             # Process message through the graph agent
+            config = {"configurable": {"thread_id": session_id}}
             async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
                 graph = graph_builder.compile(checkpointer=short_term_memory)
-                await graph.ainvoke(
-                    {"messages": [HumanMessage(content=content)]},
-                    {"configurable": {"thread_id": session_id}},
-                )
+
+                # Paused at a confirmation? Then this message is the answer, not a new request.
+                if get_pending_question(await graph.aget_state(config)):
+                    graph_input = Command(resume=content)
+                else:
+                    graph_input = {"messages": [HumanMessage(content=content)]}
+
+                await graph.ainvoke(graph_input, config)
 
                 # Get the workflow type and response from the state
-                output_state = await graph.aget_state(config={"configurable": {"thread_id": session_id}})
+                output_state = await graph.aget_state(config)
 
+                # The checkpointer can leave the interrupt() write uncommitted. Without this
+                # commit the pause is lost when the connection closes, and "ja" starts a new run.
+                await short_term_memory.conn.commit()
+
+            question = get_pending_question(output_state)
             workflow = output_state.values.get("workflow", "conversation")
             response_message = output_state.values["messages"][-1].content
 
             # Handle different response types based on workflow
-            if workflow == "audio":
+            if question:
+                success = await send_response(from_number, question, "text")
+            elif workflow == "audio":
                 audio_buffer = output_state.values["audio_buffer"]
                 success = await send_response(from_number, response_message, "audio", audio_buffer)
             elif workflow == "image":

@@ -24,7 +24,7 @@ def get_session_id(config: RunnableConfig) -> str:
 
 
 @lru_cache(maxsize=8)
-def _build_chat_model(model_name: str, temperature: float):
+def _build_chat_model(model_name: str, temperature: float, max_tokens: int | None = None):
     """Build (and reuse) a ChatGroq client.
 
     Cached because a fresh client per node meant a fresh connection pool per node,
@@ -34,12 +34,18 @@ def _build_chat_model(model_name: str, temperature: float):
         api_key=settings.GROQ_API_KEY,
         model_name=model_name,
         temperature=temperature,
+        max_tokens=max_tokens,
     )
 
 
 def get_chat_model(temperature: float = 0.7):
-    """The model that writes the user-facing reply."""
-    return _build_chat_model(settings.TEXT_MODEL_NAME, temperature)
+    """The model that writes the user-facing reply.
+
+    Capped because Groq rejects any request whose expected output exceeds the
+    model's output-tokens-per-minute limit (1000 for this model on the free tier).
+    Bob's replies are at most ~100 words, so the cap never cuts a real answer.
+    """
+    return _build_chat_model(settings.TEXT_MODEL_NAME, temperature, settings.TEXT_MAX_TOKENS)
 
 
 def get_small_chat_model(temperature: float = 0.3):

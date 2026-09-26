@@ -38,6 +38,9 @@ def schedule_meeting(
     except ValueError:
         return f"Error: '{start}' is not a valid ISO date. Use e.g. '2026-09-26T14:00'."
 
+    if start_dt < datetime.now(start_dt.tzinfo):
+        return f"Error: {start_dt:%d.%m.%Y %H:%M} is in the past. Use the next upcoming date instead."
+
     end_dt = start_dt + timedelta(minutes=duration_minutes)
     body = {
         "summary": title,

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # gpt-oss-20b handles all three structured-output schemas here; it is gpt-oss-120b
     # that fails MemoryAnalysis with "model did not call a tool".
     SMALL_TEXT_MODEL_NAME: str = "openai/gpt-oss-20b"
+    # Groq refuses a request outright ("Request too large ... output tokens per
+    # minute") when no max_tokens is set, because the default expected output
+    # exceeds the 1000 OTPM limit of TEXT_MODEL_NAME on the free tier.
+    TEXT_MAX_TOKENS: int = 600
     STT_MODEL_NAME: str = "whisper-large-v3-turbo"
     TTS_MODEL_NAME: str = "eleven_flash_v2_5"
     # FLUX.1-schnell-Free was retired by Together ("non-serverless model"), and the

@@ -72,6 +72,10 @@ async def on_message(message: cl.Message):
 
             output_state = await graph.aget_state(config)
 
+            # The checkpointer can leave the interrupt() write uncommitted. Without this
+            # commit the pause is lost when the connection closes, and "ja" starts a new run.
+            await short_term_memory.conn.commit()
+
     # The graph paused and is waiting for "ja"/"nein"
     question = get_pending_question(output_state)
     if question:
@@ -124,16 +128,26 @@ async def on_audio_end(elements):
     transcription = await speech_to_text.transcribe(audio_data)
 
     thread_id = cl.user_session.get("thread_id")
+    config = {"configurable": {"thread_id": thread_id}}
 
     async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
         graph = graph_builder.compile(checkpointer=short_term_memory)
-        output_state = await graph.ainvoke(
-            {"messages": [HumanMessage(content=transcription)]},
-            {"configurable": {"thread_id": thread_id}},
-        )
+
+        # Paused at a confirmation? Then this voice message is the answer.
+        if get_pending_question(await graph.aget_state(config)):
+            graph_input = Command(resume=transcription)
+        else:
+            graph_input = {"messages": [HumanMessage(content=transcription)]}
+
+        await graph.ainvoke(graph_input, config)
+        output_state = await graph.aget_state(config)
+        await short_term_memory.conn.commit()
+
+    # Either the confirmation question or Bob's normal answer
+    response = get_pending_question(output_state) or output_state.values["messages"][-1].content
 
     # Use global TextToSpeech instance
-    audio_buffer = await text_to_speech.synthesize(output_state["messages"][-1].content)
+    audio_buffer = await text_to_speech.synthesize(response)
 
     output_audio_el = cl.Audio(
         name="Audio",
@@ -141,4 +155,4 @@ async def on_audio_end(elements):
         mime="audio/mpeg3",
         content=audio_buffer,
     )
-    await cl.Message(content=output_state["messages"][-1].content, elements=[output_audio_el]).send()
+    await cl.Message(content=response, elements=[output_audio_el]).send()
