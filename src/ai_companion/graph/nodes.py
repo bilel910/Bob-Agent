@@ -8,6 +8,7 @@ from ai_companion.graph.state import AICompanionState
 from ai_companion.graph.utils.chains import (
     get_character_response_chain,
     get_router_chain,
+    get_action_chain,
 )
 from ai_companion.graph.utils.helpers import (
     get_chat_model,
@@ -18,6 +19,13 @@ from ai_companion.graph.utils.helpers import (
 from ai_companion.modules.memory.long_term.memory_manager import get_memory_manager
 from ai_companion.modules.schedules.context_generation import ScheduleContextGenerator
 from ai_companion.settings import settings
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from langgraph.prebuilt import ToolNode
+
+from ai_companion.modules.calendar.tools import CALENDAR_TOOLS
+
 
 # Cues that a user might be asking for a picture or a voice note. The router only
 # ever returns 'image'/'audio' when the request is explicit, so a message with none
@@ -36,6 +44,9 @@ _ACTION_CUES = (
     "plan", "eintrag", "verabred", "was steht", "call",
 )
 
+_WEEKDAYS = ["Montag", "Dienstag", "Mittwoch",
+             "Donnerstag", "Freitag", "Samstag", "Sonntag"]
+
 
 def _needs_router_llm(state: AICompanionState) -> bool:
     """Whether the last user message is worth asking the router model about."""
@@ -43,7 +54,7 @@ def _needs_router_llm(state: AICompanionState) -> bool:
         if message.type != "human":
             continue
         text = str(message.content).lower()
-        return any(cue in text for cue in _IMAGE_CUES + _AUDIO_CUES)
+        return any(cue in text for cue in _IMAGE_CUES + _AUDIO_CUES + _ACTION_CUES)
     return False
 
 
@@ -181,3 +192,26 @@ def memory_injection_node(state: AICompanionState, config: RunnableConfig):
     memory_context = memory_manager.format_memories_for_prompt(memories)
 
     return {"memory_context": memory_context}
+
+
+async def action_node(state: AICompanionState, config: RunnableConfig):
+    now = datetime.now(ZoneInfo(settings.TIMEZONE))
+    chain = get_action_chain(state.get("summary", ""))
+
+    response = await chain.ainvoke(
+        {
+            "messages": state["messages"],
+            "current_activity": ScheduleContextGenerator.get_current_activity(),
+            "memory_context": state.get("memory_context", ""),
+            "today": now.strftime("%Y-%m-%d"),
+            "weekday": _WEEKDAYS[now.weekday()],
+            "time": now.strftime("%H:%M"),
+            "timezone": settings.TIMEZONE,
+        },
+        config,
+    )
+    return {"messages": response}
+
+
+# Runs whatever tool calls the LLM asked for and returns the results as ToolMessages
+tools_node = ToolNode(CALENDAR_TOOLS)

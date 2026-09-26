@@ -9,6 +9,11 @@ from ai_companion.modules.image import ImageToText
 from ai_companion.modules.speech import SpeechToText, TextToSpeech
 from ai_companion.settings import settings
 
+from langgraph.types import Command
+
+from ai_companion.graph.utils.helpers import get_pending_question
+
+
 # Global module instances
 speech_to_text = SpeechToText()
 text_to_speech = TextToSpeech()
@@ -49,19 +54,29 @@ async def on_message(message: cl.Message):
 
     # Process through graph with enriched message content
     thread_id = cl.user_session.get("thread_id")
+    config = {"configurable": {"thread_id": thread_id}}
 
     async with cl.Step(type="run"):
         async with AsyncSqliteSaver.from_conn_string(settings.SHORT_TERM_MEMORY_DB_PATH) as short_term_memory:
             graph = graph_builder.compile(checkpointer=short_term_memory)
-            async for chunk in graph.astream(
-                {"messages": [HumanMessage(content=content)]},
-                {"configurable": {"thread_id": thread_id}},
-                stream_mode="messages",
-            ):
-                if chunk[1]["langgraph_node"] == "conversation_node" and isinstance(chunk[0], AIMessageChunk):
+
+            # Paused at a confirmation? Then this message is the answer, not a new request.
+            if get_pending_question(await graph.aget_state(config)):
+                graph_input = Command(resume=content)
+            else:
+                graph_input = {"messages": [HumanMessage(content=content)]}
+
+            async for chunk in graph.astream(graph_input, config, stream_mode="messages"):
+                if chunk[1]["langgraph_node"] in ("conversation_node", "action_node") and isinstance(chunk[0], AIMessageChunk):
                     await msg.stream_token(chunk[0].content)
 
-            output_state = await graph.aget_state(config={"configurable": {"thread_id": thread_id}})
+            output_state = await graph.aget_state(config)
+
+    # The graph paused and is waiting for "ja"/"nein"
+    question = get_pending_question(output_state)
+    if question:
+        await cl.Message(content=question).send()
+        return
 
     if output_state.values.get("workflow") == "audio":
         response = output_state.values["messages"][-1].content
@@ -75,7 +90,8 @@ async def on_message(message: cl.Message):
         await cl.Message(content=response, elements=[output_audio_el]).send()
     elif output_state.values.get("workflow") == "image":
         response = output_state.values["messages"][-1].content
-        image = cl.Image(path=output_state.values["image_path"], display="inline")
+        image = cl.Image(
+            path=output_state.values["image_path"], display="inline")
         await cl.Message(content=response, elements=[image]).send()
     else:
         await msg.send()

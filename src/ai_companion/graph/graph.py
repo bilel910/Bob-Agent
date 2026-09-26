@@ -5,6 +5,7 @@ from langgraph.graph import END, START, StateGraph
 from ai_companion.graph.edges import (
     select_workflow,
     should_summarize_conversation,
+    should_call_tools,
 )
 from ai_companion.graph.nodes import (
     audio_node,
@@ -15,6 +16,8 @@ from ai_companion.graph.nodes import (
     memory_injection_node,
     router_node,
     summarize_conversation_node,
+    action_node,
+    tools_node,
 )
 from ai_companion.graph.state import AICompanionState
 
@@ -31,7 +34,10 @@ def create_workflow_graph():
     graph_builder.add_node("conversation_node", conversation_node)
     graph_builder.add_node("image_node", image_node)
     graph_builder.add_node("audio_node", audio_node)
-    graph_builder.add_node("summarize_conversation_node", summarize_conversation_node)
+    graph_builder.add_node("action_node", action_node)
+    graph_builder.add_node("tools_node", tools_node)
+    graph_builder.add_node("summarize_conversation_node",
+                           summarize_conversation_node)
 
     # Define the flow
     # Memory extraction and routing are independent, so they fan out from START and
@@ -46,13 +52,22 @@ def create_workflow_graph():
     graph_builder.add_edge("router_node", "context_injection_node")
     graph_builder.add_edge("context_injection_node", "memory_injection_node")
 
+    # ← this edge creates the loop
+    graph_builder.add_edge("tools_node", "action_node")
+
     # Then proceed to appropriate response node
-    graph_builder.add_conditional_edges("memory_injection_node", select_workflow)
+    graph_builder.add_conditional_edges(
+        "memory_injection_node", select_workflow)
 
     # Check for summarization after any response
-    graph_builder.add_conditional_edges("conversation_node", should_summarize_conversation)
-    graph_builder.add_conditional_edges("image_node", should_summarize_conversation)
-    graph_builder.add_conditional_edges("audio_node", should_summarize_conversation)
+    graph_builder.add_conditional_edges(
+        "conversation_node", should_summarize_conversation)
+    graph_builder.add_conditional_edges(
+        "image_node", should_summarize_conversation)
+    graph_builder.add_conditional_edges("action_node", should_call_tools)
+
+    graph_builder.add_conditional_edges(
+        "audio_node", should_summarize_conversation)
     graph_builder.add_edge("summarize_conversation_node", END)
 
     return graph_builder

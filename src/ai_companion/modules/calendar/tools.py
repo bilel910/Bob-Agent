@@ -5,6 +5,7 @@ from langchain_core.tools import tool
 
 from ai_companion.modules.calendar.google_calendar import get_calendar_service
 from ai_companion.settings import settings
+from langgraph.types import interrupt
 
 
 def _parse_local(value: str) -> datetime:
@@ -45,6 +46,19 @@ def schedule_meeting(
         "end": {"dateTime": end_dt.isoformat(), "timeZone": settings.TIMEZONE},
         "attendees": [{"email": email} for email in attendees or []],
     }
+
+    who = f" mit {', '.join(attendees)}" if attendees else ""
+    answer = interrupt(
+        {
+            "question": f"Soll ich '{title}' am {start_dt:%d.%m.%Y} um {start_dt:%H:%M} "
+            f"({duration_minutes} Min.){who} in deinen Kalender eintragen? (ja/nein)"
+        }
+    )
+    if str(answer).strip().lower() not in ("ja", "j", "yes", "y", "ok", "okay", "klar", "passt"):
+        return (
+            f"NICHT eingetragen. Der Nutzer hat geantwortet: '{answer}'. "
+            "Wenn er etwas ändern möchte (z. B. eine andere Uhrzeit), plane den Termin mit den neuen Angaben neu."
+        )
 
     try:
         event = get_calendar_service().events().insert(

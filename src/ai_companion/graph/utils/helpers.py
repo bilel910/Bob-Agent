@@ -68,6 +68,14 @@ def remove_asterisk_content(text: str) -> str:
     return re.sub(r"\*.*?\*", "", text).strip()
 
 
+def get_pending_question(state) -> str | None:
+    """Return the confirmation question if the graph is paused at an interrupt()."""
+    for task in state.tasks:
+        for pending in task.interrupts:
+            return pending.value["question"]
+    return None
+
+
 class AsteriskRemovalParser(StrOutputParser):
     def parse(self, text):
         return remove_asterisk_content(super().parse(text))
@@ -83,4 +91,5 @@ __all__ = [
     "get_text_to_image_module",
     "get_text_to_speech_module",
     "remove_asterisk_content",
+    "get_pending_question",
 ]

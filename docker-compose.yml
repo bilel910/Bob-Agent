@@ -15,6 +15,8 @@ services:
     env_file:
       - .env
     environment:
+      - GOOGLE_TOKEN_PATH=/app/secrets/google_token.json
+      - TIMEZONE=Europe/Berlin
       - QDRANT_PORT=6333
       - QDRANT_API_KEY=None
       - QDRANT_HOST=localhost
@@ -25,6 +27,7 @@ services:
       # Persist the sentence-transformers embedding model (~470MB) so it is not
       # re-downloaded from HuggingFace on every rebuild.
       - hf_cache:/root/.cache/huggingface
+      - ./secrets:/app/secrets:ro
     depends_on:
       - qdrant
   whatsapp:
@@ -40,6 +43,8 @@ services:
       - QDRANT_API_KEY=None
       - QDRANT_HOST=localhost
       - QDRANT_URL=http://qdrant:6333
+      - GOOGLE_TOKEN_PATH=/app/secrets/google_token.json
+      - TIMEZONE=Europe/Berlin
     restart: unless-stopped
     volumes:
       - ./short_term_memory:/app/data
