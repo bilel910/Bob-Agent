@@ -5,8 +5,8 @@ from langchain_core.messages import HumanMessage
 from ai_companion.graph.nodes import action_node, tools_node
 
 TESTS = [
-    "Was steht am Montag in meinem Kalender?",
-    "Plane ein Meeting 'test 4' am Montag um 16 Uhr für eine Stunde",
+    "Was steht am 2026-09-30 an?",
+    "Verschieb das Team Sync auf 15 Uhr",
     # "Trag mir einen Termin am Dienstag ein",   # no time given → Bob should ask
 ]
 

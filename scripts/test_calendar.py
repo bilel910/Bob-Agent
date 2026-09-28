@@ -18,10 +18,19 @@ result = service.events().list(
     orderBy="startTime",
 ).execute()
 
+print(result)
+
 for event in result.get("items", []):
     start = event["start"].get("dateTime", event["start"].get("date"))
+    # start = event["start"].get("dateTime")
     print(start, "-", event.get("summary", "(no title)"))
 
+
 events = result.get("items", [])
+
+
 if not events:
     print("No upcoming events found.")
+
+
+# start = event["start"].get("dateTime")
