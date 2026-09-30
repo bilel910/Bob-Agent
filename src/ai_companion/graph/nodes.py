@@ -45,6 +45,8 @@ _ACTION_CUES = (
     "verschieb", "änder", "aender", "umbuch", "verleg", "move", "reschedul", "update",
     "lösch", "loesch", "entfern", "absag", "stornier", "annullier",
     "delete", "remove", "cancel", "cancell",
+    "frei", "zeit für", "lücke", "verfügbar", "slot", "free", "available",
+
 )
 
 

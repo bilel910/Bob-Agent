@@ -241,4 +241,83 @@ def delete_event(event_id: str,
     return f"Event deleted"
 
 
-CALENDAR_TOOLS = [schedule_meeting, list_events, update_event, delete_event]
+@tool(parse_docstring=True)
+def find_free_slots(
+    day: str,
+    duration_minutes: int = 30,
+    work_start: str = "09:00",
+    work_end: str = "18:00",
+) -> str:
+    """Find free time slots in the user's calendar on one day.
+
+    Use this before schedule_meeting when the user has no fixed time,
+    e.g. 'when am I free tomorrow?' or 'find me an hour on Friday'.
+
+    Args:
+        day: The day in ISO format, e.g. '2026-09-26'.
+        duration_minutes: How long the free slot must be at least.
+        work_start: Earliest start time of a slot, e.g. '09:00'.
+        work_end: Latest end time of a slot, e.g. '18:00'.
+    """
+    try:
+        window_start = _parse_local(f"{day}T{work_start}")
+        window_end = _parse_local(f"{day}T{work_end}")
+    except ValueError:
+        return f"Error: invalid date or time. Use e.g. day='2026-09-26', work_start='09:00'."
+
+    # Don't offer slots that are already over.
+    now = datetime.now(window_start.tzinfo)
+    if window_end <= now:
+        return f"{day} is already over. Pick a later day."
+    window_start = max(window_start, now.replace(second=0, microsecond=0))
+
+    try:
+        result = get_calendar_service().events().list(
+            calendarId="primary",
+            timeMin=window_start.isoformat(),
+            timeMax=window_end.isoformat(),
+            singleEvents=True,     # expands recurring events into single ones
+            orderBy="startTime",
+        ).execute()
+    except Exception as e:
+        return f"Error reading the calendar: {e}"
+
+    busy = []
+    for event in result.get("items", []):
+        # all-day event (birthday, holiday) -> ignore
+        if "dateTime" not in event["start"]:
+            continue
+        if event.get("transparency") == "transparent":  # marked as "free" in Google
+            continue
+        busy.append((
+            datetime.fromisoformat(event["start"]["dateTime"]),
+            datetime.fromisoformat(event["end"]["dateTime"]),
+        ))
+
+    gaps = _free_gaps(busy, window_start, window_end,
+                      timedelta(minutes=duration_minutes))
+    if not gaps:
+        return f"No free slot of {duration_minutes} min on {day} between {work_start} and {work_end}."
+
+    lines = [f"- {s:%H:%M} – {e:%H:%M}" for s, e in gaps]
+    return f"Free slots on {day} (at least {duration_minutes} min):\n" + "\n".join(lines)
+
+
+def _free_gaps(busy, window_start, window_end, min_length):
+    """Return the (start, end) gaps inside the window that are at least min_length long."""
+    gaps = []
+    cursor = window_start                      # "free from here on"
+    for start, end in sorted(busy):
+        if start > cursor and start - cursor >= min_length:
+            gaps.append((cursor, min(start, window_end)))
+        # jump past this event (this also merges overlaps)
+        cursor = max(cursor, end)
+        if cursor >= window_end:
+            break
+    if window_end - cursor >= min_length:
+        gaps.append((cursor, window_end))
+    return gaps
+
+
+CALENDAR_TOOLS = [schedule_meeting, list_events,
+                  update_event, delete_event, find_free_slots]
