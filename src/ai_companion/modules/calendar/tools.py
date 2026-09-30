@@ -197,4 +197,48 @@ def update_event(
     return f"Event updated: '{updated.get('summary')}' at {new_start:%d.%m.%Y %H:%M}. Link: {updated.get('htmlLink')}"
 
 
-CALENDAR_TOOLS = [schedule_meeting, list_events, update_event]
+@tool(parse_docstring=True)
+def delete_event(event_id: str,
+                 title: str | None = None,
+                 start: str | None = None,
+                 duration_minutes: int | None = None,
+                 description: str | None = None,) -> str:
+    """Delete an existing event in the user's Google Calendar.
+
+        Call list_events first to find the event_id. Only pass the fields that should change.
+
+        Args:
+            event_id: The id of the event, as shown by list_events.
+            title: New title, if it should change.
+            start: New start time in ISO format without timezone, e.g. '2026-09-26T14:00'.
+            duration_minutes: New length in minutes, if it should change.
+            description: New notes, if they should change.
+        """
+
+    service = get_calendar_service()
+
+    try:
+        event = service.events().get(calendarId="primary", eventId=event_id).execute()
+    except Exception as e:
+        return f"Error: could not find event '{event_id}'. Call list_events first. ({e})"
+
+    answer = interrupt(
+        {
+            "question": f"Soll ich '{title}' ({start:%d.%m.%Y %H:%M}) Lösche es. (ja/nein)"
+        }
+    )
+    if str(answer).strip().lower() not in ("ja", "j", "yes", "y", "ok", "okay", "klar", "passt"):
+        return f"NICHT geändert. Der Nutzer hat geantwortet: '{answer}'."
+
+    try:
+        service.events().delete(
+            calendarId="primary",
+            eventId=event_id,
+        ).execute()
+    except Exception as e:
+        return f"Error updating the event: {e}"
+
+    return f"Event deleted"
+
+
+CALENDAR_TOOLS = [schedule_meeting, list_events, update_event, delete_event]

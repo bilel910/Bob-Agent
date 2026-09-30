@@ -43,6 +43,8 @@ _ACTION_CUES = (
     "termin", "meeting", "treffen", "kalender", "calendar", "schedule",
     "plan", "eintrag", "verabred", "was steht", "call",
     "verschieb", "änder", "aender", "umbuch", "verleg", "move", "reschedul", "update",
+    "lösch", "loesch", "entfern", "absag", "stornier", "annullier",
+    "delete", "remove", "cancel", "cancell",
 )
 
 

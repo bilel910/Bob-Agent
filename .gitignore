@@ -329,3 +329,7 @@ short_term_memory/
 secrets/
 img/
 captures/
+
+run.bat
+run.ps1
+uv.lock
