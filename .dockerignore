@@ -1,0 +1,12 @@
+.venv/
+**/__pycache__/
+**/*.pyc
+.git/
+.env
+secrets/
+notebooks/
+captures/
+docs/
+long_term_memory/
+short_term_memory/
+uv/

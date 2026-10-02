@@ -118,22 +118,6 @@ See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for screenshots showing w
 
 The `secrets/` folder is git-ignored. Never commit it.
 
-### 4. Run
-
-**Windows (PowerShell):**
-
-```powershell
-.\run.ps1 ava-run      # build and start all containers
-.\run.ps1 ava-stop     # stop them
-.\run.ps1 ava-delete   # stop and delete memory data
-```
-
-**macOS / Linux:**
-
-```bash
-make ava-run
-make ava-stop
-make ava-delete
 ```
 
 | Service           | URL                             |
@@ -147,11 +131,13 @@ To use WhatsApp, expose port `8081` publicly (e.g. with ngrok) and register the 
 ## Example prompts
 
 ```
+
 Was steht am Montag in meinem Kalender?
 Plane ein Meeting 'Team Sync' am Montag um 16 Uhr für eine Stunde
 Schick mir eine Sprachnachricht!
 Zeig mir ein Bild von deinem Arbeitsplatz
-```
+
+````
 
 When Bob schedules a meeting, he asks first (_"Soll ich … in deinen Kalender eintragen? (ja/nein)"_). Answer `ja` to confirm, or say what you want to change.
 
@@ -160,7 +146,7 @@ When Bob schedules a meeting, he asks first (_"Soll ich … in deinen Kalender e
 ```bash
 .\run.ps1 format-fix   # or: make format-fix
 .\run.ps1 lint-check   # or: make lint-check
-```
+````
 
 Manual test scripts (they need a valid `.env` and a Google token):
 
