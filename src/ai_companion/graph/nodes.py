@@ -49,6 +49,11 @@ _ACTION_CUES = (
 
 )
 
+_MODE_NAMES = {
+    "BUS": "Bus", "TRAM": "Tram", "SUBWAY": "U-Bahn", "METRO": "S-Bahn",
+    "REGIONAL_RAIL": "Regionalbahn", "REGIONAL_FAST_RAIL": "Regionalexpress",
+    "HIGHSPEED_RAIL": "ICE", "LONG_DISTANCE": "Fernzug", "COACH": "Fernbus", "FERRY": "Fähre",
+}
 
 _WEEKDAYS = ["Montag", "Dienstag", "Mittwoch",
              "Donnerstag", "Freitag", "Samstag", "Sonntag"]
