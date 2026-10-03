@@ -10,6 +10,10 @@ from ai_companion.graph.utils.helpers import (
 )
 
 from ai_companion.modules.calendar.tools import CALENDAR_TOOLS
+from ai_companion.modules.transport.tools import TRANSPORT_TOOLS
+
+
+ACTION_TOOLS = CALENDAR_TOOLS + TRANSPORT_TOOLS
 
 
 class RouterResponse(BaseModel):
@@ -49,7 +53,7 @@ def get_character_response_chain(summary: str = ""):
 
 def get_action_chain(summary: str = ""):
     # bind_tools sends the tool schemas (the JSON you printed in Lesson 2) with every request
-    model = get_chat_model(temperature=0.2).bind_tools(CALENDAR_TOOLS)
+    model = get_chat_model(temperature=0.2).bind_tools(ACTION_TOOLS)
     system_message = ACTION_PROMPT
 
     if summary:

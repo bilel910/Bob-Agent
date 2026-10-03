@@ -21,7 +21,8 @@ class MemoryAnalysis(BaseModel):
         ...,
         description="Whether the message is important enough to be stored as a memory",
     )
-    formatted_memory: Optional[str] = Field(..., description="The formatted memory to be stored")
+    formatted_memory: Optional[str] = Field(...,
+                                            description="The formatted memory to be stored")
 
 
 class MemoryManager:
@@ -58,14 +59,17 @@ class MemoryManager:
         analysis = await self._analyze_memory(message.content)
         if analysis.is_important and analysis.formatted_memory:
             # Check if similar memory exists for this user
-            similar = self.vector_store.find_similar_memory(analysis.formatted_memory, session_id)
+            similar = self.vector_store.find_similar_memory(
+                analysis.formatted_memory, session_id)
             if similar:
                 # Skip storage if we already have a similar memory
-                self.logger.info(f"Similar memory already exists: '{analysis.formatted_memory}'")
+                self.logger.info(
+                    f"Similar memory already exists: '{analysis.formatted_memory}'")
                 return
 
             # Store new memory
-            self.logger.info(f"Storing new memory: '{analysis.formatted_memory}'")
+            self.logger.info(
+                f"Storing new memory: '{analysis.formatted_memory}'")
             self.vector_store.store_memory(
                 text=analysis.formatted_memory,
                 metadata={
@@ -77,10 +81,12 @@ class MemoryManager:
 
     def get_relevant_memories(self, context: str, session_id: str) -> List[str]:
         """Retrieve relevant memories for this user based on the current context."""
-        memories = self.vector_store.search_memories(context, k=settings.MEMORY_TOP_K, session_id=session_id)
+        memories = self.vector_store.search_memories(
+            context, k=settings.MEMORY_TOP_K, session_id=session_id)
         if memories:
             for memory in memories:
-                self.logger.debug(f"Memory: '{memory.text}' (score: {memory.score:.2f})")
+                self.logger.debug(
+                    f"Memory: '{memory.text}' (score: {memory.score:.2f})")
         return [memory.text for memory in memories]
 
     def format_memories_for_prompt(self, memories: List[str]) -> str:

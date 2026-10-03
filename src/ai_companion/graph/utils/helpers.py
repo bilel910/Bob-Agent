@@ -23,6 +23,28 @@ def get_session_id(config: RunnableConfig) -> str:
     return str(thread_id) if thread_id is not None else "default"
 
 
+def chat_history(messages: list, keep_current_tool_calls: bool = False) -> list:
+    """The conversation as the models should see it: without old tool traffic.
+
+    Tool calls and their results (calendar lookups, journey plans) only matter to
+    the turn that made them; Bob's text answer already carries what the user needs.
+    Left in, they pile up in every later prompt: one oversized journey result made
+    every following request exceed the context window, and gpt-oss on Groq rejects
+    tool messages outright ("Tools should have a name!").
+
+    keep_current_tool_calls keeps the tool calls made since the last user message,
+    which the action node needs while it is still working through its tools.
+    """
+    last_human = max((i for i, m in enumerate(messages) if m.type == "human"), default=-1)
+    history = []
+    for i, message in enumerate(messages):
+        is_tool_traffic = message.type == "tool" or getattr(message, "tool_calls", None)
+        if is_tool_traffic and not (keep_current_tool_calls and i > last_human):
+            continue
+        history.append(message)
+    return history
+
+
 @lru_cache(maxsize=8)
 def _build_chat_model(model_name: str, temperature: float, max_tokens: int | None = None):
     """Build (and reuse) a ChatGroq client.
@@ -32,7 +54,7 @@ def _build_chat_model(model_name: str, temperature: float, max_tokens: int | Non
     """
     return ChatGroq(
         api_key=settings.GROQ_API_KEY,
-        model_name=model_name,
+        model=model_name,
         temperature=temperature,
         max_tokens=max_tokens,
     )

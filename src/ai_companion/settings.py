@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str
     ELEVENLABS_VOICE_ID: str
     TOGETHER_API_KEY: str
-
+    OPENAI_API_KEY: str
     QDRANT_API_KEY: str | None
     QDRANT_URL: str
     QDRANT_PORT: str = "6333"

@@ -1,6 +1,8 @@
+import wave
 from io import BytesIO
 
 import chainlit as cl
+from chainlit.config import config as chainlit_config
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
@@ -101,28 +103,35 @@ async def on_message(message: cl.Message):
         await msg.send()
 
 
+@cl.on_audio_start
+async def on_audio_start():
+    """Allow the microphone and start a fresh recording buffer"""
+    cl.user_session.set("audio_buffer", BytesIO())
+    return True
+
+
 @cl.on_audio_chunk
-async def on_audio_chunk(chunk: cl.AudioChunk):
-    """Handle incoming audio chunks"""
-    if chunk.isStart:
-        buffer = BytesIO()
-        buffer.name = f"input_audio.{chunk.mimeType.split('/')[1]}"
-        cl.user_session.set("audio_buffer", buffer)
-        cl.user_session.set("audio_mime_type", chunk.mimeType)
+async def on_audio_chunk(chunk: cl.InputAudioChunk):
+    """Handle incoming audio chunks (raw 16-bit mono PCM)"""
     cl.user_session.get("audio_buffer").write(chunk.data)
 
 
 @cl.on_audio_end
-async def on_audio_end(elements):
+async def on_audio_end():
     """Process completed audio input"""
-    # Get audio data
-    audio_buffer = cl.user_session.get("audio_buffer")
-    audio_buffer.seek(0)
-    audio_data = audio_buffer.read()
+    # The browser streams raw PCM, so wrap it in a WAV container for Whisper
+    pcm_data = cl.user_session.get("audio_buffer").getvalue()
+    wav_buffer = BytesIO()
+    with wave.open(wav_buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(chainlit_config.features.audio.sample_rate)
+        wav_file.writeframes(pcm_data)
+    audio_data = wav_buffer.getvalue()
 
     # Show user's audio message
-    input_audio_el = cl.Audio(mime="audio/mpeg3", content=audio_data)
-    await cl.Message(author="Du", content="", elements=[input_audio_el, *elements]).send()
+    input_audio_el = cl.Audio(mime="audio/wav", content=audio_data)
+    await cl.Message(author="Du", content="", elements=[input_audio_el]).send()
 
     # Use global SpeechToText instance
     transcription = await speech_to_text.transcribe(audio_data)

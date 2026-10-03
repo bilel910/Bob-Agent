@@ -9,8 +9,10 @@ from ai_companion.graph.utils.chains import (
     get_character_response_chain,
     get_router_chain,
     get_action_chain,
+    ACTION_TOOLS
 )
 from ai_companion.graph.utils.helpers import (
+    chat_history,
     get_chat_model,
     get_session_id,
     get_text_to_image_module,
@@ -23,8 +25,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from langgraph.prebuilt import ToolNode
-
-from ai_companion.modules.calendar.tools import CALENDAR_TOOLS
 
 
 # Cues that a user might be asking for a picture or a voice note. The router only
@@ -46,14 +46,9 @@ _ACTION_CUES = (
     "lösch", "loesch", "entfern", "absag", "stornier", "annullier",
     "delete", "remove", "cancel", "cancell",
     "frei", "zeit für", "lücke", "verfügbar", "slot", "free", "available",
-
+    "bahn", "zug", "bus", "tram", "verbindung", "wie komm", "fahr", "haltestelle",
+    "abfahrt", "umsteig", "öffis", "oeffis", "flughafen", "bahnhof", "route", "train",
 )
-
-_MODE_NAMES = {
-    "BUS": "Bus", "TRAM": "Tram", "SUBWAY": "U-Bahn", "METRO": "S-Bahn",
-    "REGIONAL_RAIL": "Regionalbahn", "REGIONAL_FAST_RAIL": "Regionalexpress",
-    "HIGHSPEED_RAIL": "ICE", "LONG_DISTANCE": "Fernzug", "COACH": "Fernbus", "FERRY": "Fähre",
-}
 
 _WEEKDAYS = ["Montag", "Dienstag", "Mittwoch",
              "Donnerstag", "Freitag", "Samstag", "Sonntag"]
@@ -74,7 +69,7 @@ async def router_node(state: AICompanionState):
         return {"workflow": "conversation"}
 
     chain = get_router_chain()
-    response = await chain.ainvoke({"messages": state["messages"][-settings.ROUTER_MESSAGES_TO_ANALYZE:]})
+    response = await chain.ainvoke({"messages": chat_history(state["messages"])[-settings.ROUTER_MESSAGES_TO_ANALYZE:]})
     return {"workflow": response.response_type}
 
 
@@ -95,7 +90,7 @@ async def conversation_node(state: AICompanionState, config: RunnableConfig):
 
     response = await chain.ainvoke(
         {
-            "messages": state["messages"],
+            "messages": chat_history(state["messages"]),
             "current_activity": current_activity,
             "memory_context": memory_context,
         },
@@ -111,7 +106,7 @@ async def image_node(state: AICompanionState, config: RunnableConfig):
     chain = get_character_response_chain(state.get("summary", ""))
     text_to_image_module = get_text_to_image_module()
 
-    scenario = await text_to_image_module.create_scenario(state["messages"][-5:])
+    scenario = await text_to_image_module.create_scenario(chat_history(state["messages"])[-5:])
     os.makedirs("generated_images", exist_ok=True)
     img_path = f"generated_images/image_{str(uuid4())}.png"
     await text_to_image_module.generate_image(scenario.image_prompt, img_path)
@@ -120,7 +115,7 @@ async def image_node(state: AICompanionState, config: RunnableConfig):
     scenario_message = HumanMessage(
         content=f"<Bild von Bob angehängt, erzeugt aus dem Prompt: {scenario.image_prompt}>"
     )
-    updated_messages = state["messages"] + [scenario_message]
+    updated_messages = chat_history(state["messages"]) + [scenario_message]
 
     response = await chain.ainvoke(
         {
@@ -143,7 +138,7 @@ async def audio_node(state: AICompanionState, config: RunnableConfig):
 
     response = await chain.ainvoke(
         {
-            "messages": state["messages"],
+            "messages": chat_history(state["messages"]),
             "current_activity": current_activity,
             "memory_context": memory_context,
         },
@@ -172,7 +167,7 @@ async def summarize_conversation_node(state: AICompanionState):
             "ausgetauscht wurden. Antworte auf Deutsch:"
         )
 
-    messages = state["messages"] + [HumanMessage(content=summary_message)]
+    messages = chat_history(state["messages"]) + [HumanMessage(content=summary_message)]
     response = await model.ainvoke(messages)
 
     delete_messages = [RemoveMessage(
@@ -195,7 +190,7 @@ def memory_injection_node(state: AICompanionState, config: RunnableConfig):
     memory_manager = get_memory_manager()
 
     # Get relevant memories based on recent conversation
-    recent_context = " ".join([m.content for m in state["messages"][-3:]])
+    recent_context = " ".join([m.content for m in chat_history(state["messages"])[-3:]])
     memories = memory_manager.get_relevant_memories(
         recent_context, get_session_id(config))
 
@@ -211,7 +206,7 @@ async def action_node(state: AICompanionState, config: RunnableConfig):
 
     response = await chain.ainvoke(
         {
-            "messages": state["messages"],
+            "messages": chat_history(state["messages"], keep_current_tool_calls=True),
             "current_activity": ScheduleContextGenerator.get_current_activity(),
             "memory_context": state.get("memory_context", ""),
             "today": now.strftime("%Y-%m-%d"),
@@ -225,4 +220,4 @@ async def action_node(state: AICompanionState, config: RunnableConfig):
 
 
 # Runs whatever tool calls the LLM asked for and returns the results as ToolMessages
-tools_node = ToolNode(CALENDAR_TOOLS)
+tools_node = ToolNode(ACTION_TOOLS)
