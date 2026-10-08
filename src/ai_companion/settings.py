@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     QDRANT_URL: str
     QDRANT_PORT: str = "6333"
     QDRANT_HOST: str | None = None
+    TAVILY_API_KEY: str | None = None
 
     # The llama-3.x models this project shipped with have been decommissioned by
     # Groq. qwen3.8-27b handles every structured-output schema here and produces
