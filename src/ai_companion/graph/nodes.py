@@ -48,6 +48,9 @@ _ACTION_CUES = (
     "frei", "zeit für", "lücke", "verfügbar", "slot", "free", "available",
     "bahn", "zug", "bus", "tram", "verbindung", "wie komm", "fahr", "haltestelle",
     "abfahrt", "umsteig", "öffis", "oeffis", "flughafen", "bahnhof", "route", "train",
+    "such", "google", "internet", "online", "news", "nachricht", "aktuell", "neueste",
+    "wetter", "öffnungszeit", "geöffnet", "preis", "kostet", "ergebnis", "wer ist", "was ist",
+
 )
 
 _WEEKDAYS = ["Montag", "Dienstag", "Mittwoch",
@@ -167,7 +170,8 @@ async def summarize_conversation_node(state: AICompanionState):
             "ausgetauscht wurden. Antworte auf Deutsch:"
         )
 
-    messages = chat_history(state["messages"]) + [HumanMessage(content=summary_message)]
+    messages = chat_history(state["messages"]) + \
+        [HumanMessage(content=summary_message)]
     response = await model.ainvoke(messages)
 
     delete_messages = [RemoveMessage(
@@ -190,7 +194,8 @@ def memory_injection_node(state: AICompanionState, config: RunnableConfig):
     memory_manager = get_memory_manager()
 
     # Get relevant memories based on recent conversation
-    recent_context = " ".join([m.content for m in chat_history(state["messages"])[-3:]])
+    recent_context = " ".join(
+        [m.content for m in chat_history(state["messages"])[-3:]])
     memories = memory_manager.get_relevant_memories(
         recent_context, get_session_id(config))
 

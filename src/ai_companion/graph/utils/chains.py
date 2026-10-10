@@ -11,9 +11,10 @@ from ai_companion.graph.utils.helpers import (
 
 from ai_companion.modules.calendar.tools import CALENDAR_TOOLS
 from ai_companion.modules.transport.tools import TRANSPORT_TOOLS
+from ai_companion.modules.web_search.tools import WEB_SEARCH_TOOLS
 
 
-ACTION_TOOLS = CALENDAR_TOOLS + TRANSPORT_TOOLS
+ACTION_TOOLS = CALENDAR_TOOLS + TRANSPORT_TOOLS + WEB_SEARCH_TOOLS
 
 
 class RouterResponse(BaseModel):
