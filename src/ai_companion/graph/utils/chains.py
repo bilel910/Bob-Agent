@@ -52,9 +52,12 @@ def get_character_response_chain(summary: str = ""):
     return prompt | model | AsteriskRemovalParser()
 
 
-def get_action_chain(summary: str = ""):
-    # bind_tools sends the tool schemas (the JSON you printed in Lesson 2) with every request
-    model = get_chat_model(temperature=0.2).bind_tools(ACTION_TOOLS)
+def get_action_chain(summary: str = "", force_tool: bool = False):
+    # bind_tools sends the tool schemas (the JSON you printed in Lesson 2) with every request.
+    # force_tool makes the model call a tool instead of answering from memory: left to
+    # choose, it often replied "Erledigt!" without ever calling schedule_meeting.
+    model = get_chat_model(temperature=0.2).bind_tools(
+        ACTION_TOOLS, tool_choice="required" if force_tool else "auto")
     system_message = ACTION_PROMPT
 
     if summary:

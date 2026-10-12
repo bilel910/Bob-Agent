@@ -50,6 +50,7 @@ _ACTION_CUES = (
     "abfahrt", "umsteig", "öffis", "oeffis", "flughafen", "bahnhof", "route", "train",
     "such", "google", "internet", "online", "news", "nachricht", "aktuell", "neueste",
     "wetter", "öffnungszeit", "geöffnet", "preis", "kostet", "ergebnis", "wer ist", "was ist",
+    "http", "www.", "webseite", "seite", "link", "artikel", "lies", "zusammenfass",
 
 )
 
@@ -72,7 +73,12 @@ async def router_node(state: AICompanionState):
         return {"workflow": "conversation"}
 
     chain = get_router_chain()
-    response = await chain.ainvoke({"messages": chat_history(state["messages"])[-settings.ROUTER_MESSAGES_TO_ANALYZE:]})
+    try:
+        response = await chain.ainvoke({"messages": chat_history(state["messages"])[-settings.ROUTER_MESSAGES_TO_ANALYZE:]})
+    except Exception:
+        # The small model sometimes answers a bare word instead of JSON; a plain
+        # reply is the safe default rather than failing the whole message.
+        return {"workflow": "conversation"}
     return {"workflow": response.response_type}
 
 
@@ -207,11 +213,23 @@ def memory_injection_node(state: AICompanionState, config: RunnableConfig):
 
 async def action_node(state: AICompanionState, config: RunnableConfig):
     now = datetime.now(ZoneInfo(settings.TIMEZONE))
-    chain = get_action_chain(state.get("summary", ""))
+
+    # chat_history strips old tool traffic, so earlier turns look like Bob answered
+    # calendar questions without tools. With a long history the model copies that and
+    # replies "Erledigt!" without calling anything. Keep only the current request and
+    # the exchange before it (enough for follow-ups like "um 15 Uhr").
+    messages = chat_history(state["messages"], keep_current_tool_calls=True)
+    last_human = max((i for i, m in enumerate(messages) if m.type == "human"), default=0)
+    messages = messages[max(0, last_human - settings.ACTION_PREVIOUS_MESSAGES):]
+
+    # The router only sends real tool requests here, so the first step of a turn must
+    # call a tool. Once tool results are in, the model may answer in text.
+    first_step = not any(m.type == "tool" for m in messages)
+    chain = get_action_chain(state.get("summary", ""), force_tool=first_step)
 
     response = await chain.ainvoke(
         {
-            "messages": chat_history(state["messages"], keep_current_tool_calls=True),
+            "messages": messages,
             "current_activity": ScheduleContextGenerator.get_current_activity(),
             "memory_context": state.get("memory_context", ""),
             "today": now.strftime("%Y-%m-%d"),

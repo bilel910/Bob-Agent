@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     # router LLM call entirely and go straight to 'conversation'. Set to False to
     # always ask the model.
     ROUTER_FAST_PATH: bool = True
+    # Messages before the current request that the action node sees (one exchange).
+    ACTION_PREVIOUS_MESSAGES: int = 2
     TOTAL_MESSAGES_SUMMARY_TRIGGER: int = 20
     TOTAL_MESSAGES_AFTER_SUMMARY: int = 5
 
