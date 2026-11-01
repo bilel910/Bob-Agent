@@ -51,7 +51,9 @@ _ACTION_CUES = (
     "such", "google", "internet", "online", "news", "nachricht", "aktuell", "neueste",
     "wetter", "öffnungszeit", "geöffnet", "preis", "kostet", "ergebnis", "wer ist", "was ist",
     "http", "www.", "webseite", "seite", "link", "artikel", "lies", "zusammenfass",
-
+    # Tasks. A photographed list arrives as "[Bildanalyse: ...]", whose description
+    # always says "Liste" (IMAGE_ANALYSIS_PROMPT asks for it).
+    "liste", "aufgabe", "to-do", "todo", "task", "erledig", "notier", "zettel",
 )
 
 _WEEKDAYS = ["Montag", "Dienstag", "Mittwoch",

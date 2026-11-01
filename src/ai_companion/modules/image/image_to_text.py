@@ -3,20 +3,31 @@ import logging
 import os
 from typing import Optional, Union
 
+from together import Together
+
 from ai_companion.core.exceptions import ImageToTextError
+from ai_companion.core.prompts import IMAGE_ANALYSIS_PROMPT
 from ai_companion.settings import settings
-from groq import Groq
+
+
+def _mime_type(image_bytes: bytes) -> str:
+    """Guess the image type from its first bytes (Chainlit uploads are often PNG)."""
+    if image_bytes.startswith(b"\x89PNG"):
+        return "image/png"
+    if image_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/jpeg"
 
 
 class ImageToText:
-    """A class to handle image-to-text conversion using Groq's vision capabilities."""
+    """A class to handle image-to-text conversion (description and OCR) using Together's vision models."""
 
-    REQUIRED_ENV_VARS = ["GROQ_API_KEY"]
+    REQUIRED_ENV_VARS = ["TOGETHER_API_KEY"]
 
     def __init__(self):
         """Initialize the ImageToText class and validate environment variables."""
         self._validate_env_vars()
-        self._client: Optional[Groq] = None
+        self._client: Optional[Together] = None
         self.logger = logging.getLogger(__name__)
 
     def _validate_env_vars(self) -> None:
@@ -26,21 +37,21 @@ class ImageToText:
             raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
     @property
-    def client(self) -> Groq:
-        """Get or create Groq client instance using singleton pattern."""
+    def client(self) -> Together:
+        """Get or create Together client instance using singleton pattern."""
         if self._client is None:
-            self._client = Groq(api_key=settings.GROQ_API_KEY)
+            self._client = Together(api_key=settings.TOGETHER_API_KEY)
         return self._client
 
     async def analyze_image(self, image_data: Union[str, bytes], prompt: str = "") -> str:
-        """Analyze an image using Groq's vision capabilities.
+        """Describe an image and transcribe any text on it, including handwriting.
 
         Args:
             image_data: Either a file path (str) or binary image data (bytes)
             prompt: Optional prompt to guide the image analysis
 
         Returns:
-            str: Description or analysis of the image
+            str: Description of the image, followed by the text found on it
 
         Raises:
             ValueError: If the image data is empty or invalid
@@ -62,19 +73,15 @@ class ImageToText:
             # Convert image to base64
             base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
-            # Default prompt if none provided
-            if not prompt:
-                prompt = "Bitte beschreibe ausführlich auf Deutsch, was du auf diesem Bild siehst."
-
             # Create the messages for the vision API
             messages = [
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": prompt},
+                        {"type": "text", "text": prompt or IMAGE_ANALYSIS_PROMPT},
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                            "image_url": {"url": f"data:{_mime_type(image_bytes)};base64,{base64_image}"},
                         },
                     ],
                 }
@@ -84,10 +91,10 @@ class ImageToText:
             response = self.client.chat.completions.create(
                 model=settings.ITT_MODEL_NAME,
                 messages=messages,
-                max_tokens=1000,
+                max_tokens=settings.ITT_MAX_TOKENS,
             )
 
-            if not response.choices:
+            if not response.choices or not response.choices[0].message.content:
                 raise ImageToTextError("No response received from the vision model")
 
             description = response.choices[0].message.content

@@ -58,10 +58,7 @@ async def whatsapp_handler(request: Request) -> Response:
                 # Download and analyze image
                 image_bytes = await download_media(message["image"]["id"])
                 try:
-                    description = await image_to_text.analyze_image(
-                        image_bytes,
-                        "Bitte beschreibe auf Deutsch, was du auf diesem Bild siehst, im Kontext unseres Gesprächs.",
-                    )
+                    description = await image_to_text.analyze_image(image_bytes)
                     content += f"\n[Bildanalyse: {description}]"
                 except Exception as e:
                     logger.warning(f"Failed to analyze image: {e}")

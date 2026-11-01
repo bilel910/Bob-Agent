@@ -45,10 +45,13 @@ class Settings(BaseSettings):
     # steps=4 only made sense for the distilled "schnell" model. Leaving this None
     # omits the parameter entirely so each model uses its own sane default.
     TTI_STEPS: int | None = None
-    # NOTE: no vision-capable model is currently available on Groq for this key, so
-    # image understanding is effectively disabled. Both interfaces already catch the
-    # resulting error and continue without the image description.
-    ITT_MODEL_NAME: str = "llama-3.2-90b-vision-preview"
+    # Groq has no vision model left for this key, so photos are read on Together.
+    # Nemotron VL is the only serverless vision model there; it reads handwriting,
+    # umlauts and crossed-out lines reliably.
+    ITT_MODEL_NAME: str = "nvidia/NVIDIA-Nemotron-3.5-Super-VL"
+    # The model thinks before answering and that hidden reasoning counts against
+    # max_tokens: at 1000 a six-line list came back with its last words cut off.
+    ITT_MAX_TOKENS: int = 2500
 
     MEMORY_TOP_K: int = 3
     ROUTER_MESSAGES_TO_ANALYZE: int = 3

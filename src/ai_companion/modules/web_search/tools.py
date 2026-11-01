@@ -32,7 +32,8 @@ def web_search(
     """Search the internet for current information: news, facts, opening hours, prices, events, weather.
 
     Use this when the answer depends on recent events or on facts you are not sure about.
-    Do not use it for the user's calendar or for bus and train connections.
+    Do not use it for the user's calendar, for bus and train connections, or for a photographed
+    list ('[Bildanalyse: ...]'): lists become tasks with create_tasks.
 
     Args:
         query: A short search query like you would type into Google, e.g. 'Wetter Berlin morgen'.

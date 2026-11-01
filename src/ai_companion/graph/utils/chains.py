@@ -1,3 +1,4 @@
+from groq import BadRequestError
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, Field
 
@@ -10,11 +11,12 @@ from ai_companion.graph.utils.helpers import (
 )
 
 from ai_companion.modules.calendar.tools import CALENDAR_TOOLS
+from ai_companion.modules.tasks.tools import TASK_TOOLS
 from ai_companion.modules.transport.tools import TRANSPORT_TOOLS
 from ai_companion.modules.web_search.tools import WEB_SEARCH_TOOLS
 
 
-ACTION_TOOLS = CALENDAR_TOOLS + TRANSPORT_TOOLS + WEB_SEARCH_TOOLS
+ACTION_TOOLS = CALENDAR_TOOLS + TASK_TOOLS + TRANSPORT_TOOLS + WEB_SEARCH_TOOLS
 
 
 class RouterResponse(BaseModel):
@@ -58,6 +60,9 @@ def get_action_chain(summary: str = "", force_tool: bool = False):
     # choose, it often replied "Erledigt!" without ever calling schedule_meeting.
     model = get_chat_model(temperature=0.2).bind_tools(
         ACTION_TOOLS, tool_choice="required" if force_tool else "auto")
+    # Now and then the model writes a broken tool call (a stray quote, wrong argument type)
+    # and Groq answers 400 instead of passing it on. A second try almost always works.
+    model = model.with_retry(retry_if_exception_type=(BadRequestError,), stop_after_attempt=2)
     system_message = ACTION_PROMPT
 
     if summary:

@@ -46,10 +46,7 @@ async def on_message(message: cl.Message):
                 # Analyze image and add to message content
                 try:
                     # Use global ImageToText instance
-                    description = await image_to_text.analyze_image(
-                        image_bytes,
-                        "Bitte beschreibe auf Deutsch, was du auf diesem Bild siehst, im Kontext unseres Gesprächs.",
-                    )
+                    description = await image_to_text.analyze_image(image_bytes)
                     content += f"\n[Bildanalyse: {description}]"
                 except Exception as e:
                     cl.logger.warning(f"Failed to analyze image: {e}")

@@ -11,6 +11,7 @@ Bob is a multimodal AI companion built with [LangGraph](https://github.com/langc
   - Short-term: the conversation state is checkpointed in SQLite and summarized automatically once it gets long.
   - Long-term: facts about you are extracted and stored in Qdrant, then recalled when they are relevant.
 - **Google Calendar**: lists your events for a day and schedules meetings. Bob asks for confirmation before he creates an event (human-in-the-loop via LangGraph `interrupt()`).
+- **Handwritten lists to tasks**: send a photo of a to-do or shopping list and Bob reads it (OCR, handwriting included), skips crossed-out lines and, after you confirm, adds each line to Google Tasks.
 
 ## How it works
 
@@ -40,7 +41,8 @@ START ─┬─> memory_extraction_node ─┐
 | Image generation    | [Together AI](https://together.ai) (`FLUX.2-dev`), [Pollinations](https://pollinations.ai) fallback |
 | Long-term memory    | [Qdrant](https://qdrant.tech) + `sentence-transformers`                                             |
 | Short-term memory   | SQLite (LangGraph checkpointer)                                                                     |
-| Calendar            | Google Calendar API                                                                                 |
+| Calendar, tasks     | Google Calendar API, Google Tasks API                                                               |
+| Image understanding | [Together AI](https://together.ai) (`nvidia/NVIDIA-Nemotron-3.5-Super-VL`)                          |
 | Interfaces          | [Chainlit](https://chainlit.io) (web), FastAPI webhook (WhatsApp Cloud API)                         |
 
 ## Project structure
@@ -54,9 +56,10 @@ src/ai_companion/
 │   └── whatsapp/      # WhatsApp webhook (FastAPI)
 ├── modules/
 │   ├── calendar/      # Google Calendar client and tools
-│   ├── image/         # text-to-image, image-to-text
+│   ├── image/         # text-to-image, image-to-text (incl. OCR)
 │   ├── memory/        # long-term memory (Qdrant)
 │   ├── schedules/     # current-activity context
+│   ├── tasks/         # Google Tasks client and tools
 │   └── speech/        # speech-to-text, text-to-speech
 └── settings.py        # all configuration (pydantic-settings)
 scripts/               # Google OAuth setup and manual test scripts
@@ -106,9 +109,9 @@ Other options (models, timezone, memory limits) are in [settings.py](src/ai_comp
 
 See [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) for screenshots showing where to find each API key.
 
-### 3. Connect Google Calendar (optional)
+### 3. Connect Google Calendar and Tasks (optional)
 
-1. In the Google Cloud Console, enable the **Google Calendar API** and create an **OAuth client ID** of type _Desktop app_.
+1. In the Google Cloud Console, enable the **Google Calendar API** and the **Google Tasks API** and create an **OAuth client ID** of type _Desktop app_. Tasks lets Bob turn a photographed (handwritten) list into to-dos.
 2. Download the client JSON and save it as `secrets/google_credentials.json`.
 3. Run the auth script. It opens your browser to log in and writes `secrets/google_token.json`:
 
@@ -154,6 +157,7 @@ Manual test scripts (they need a valid `.env` and a Google token):
 uv run python scripts/test_router.py          # router decisions
 uv run python scripts/test_calendar.py        # Google Calendar connection
 uv run python scripts/test_calendar_tools.py  # calendar tools
+uv run python scripts/test_tasks.py           # photo of a list -> tasks
 uv run python scripts/test_action.py          # action node + tool loop end to end
 ```
 
