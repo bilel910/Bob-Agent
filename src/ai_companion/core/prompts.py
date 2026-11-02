@@ -39,14 +39,17 @@ zu verschieben, zu löschen oder nachzuschauen, ist IMMER 'action', auch wenn vo
 13. Wähle 'action', wenn der Nutzer das Foto einer Liste schickt (To-do-Liste, Einkaufszettel, Notizen mit Punkten),
     auch ohne weiteren Text. Du erkennst das an "[Bildanalyse: ...]" mit einer Liste unter "Text auf dem Bild".
 14. Wähle NICHT 'action', wenn der Nutzer zum Foto etwas anderes will (z. B. "Kannst du meine Schrift lesen?", "Wie findest du das Bild?")
+15. Wähle 'action', wenn der Nutzer eine Routine anlegen, ansehen, ändern oder löschen will
+    (z. B. "Wenn ich 'Guten Morgen' sage, zeig mir Wetter und Termine", "Welche Routinen habe ich?")
+16. Wähle NICHT 'action', wenn der Nutzer nur erzählt (z. B. "Wenn ich müde bin, trinke ich Kaffee")
 
 Die Ausgabe MUSS eine der folgenden sein:
 1. 'conversation' - für normale Textantworten
 2. 'image' - NUR wenn der Nutzer ausdrücklich visuelle Inhalte verlangt
 3. 'audio' - NUR wenn der Nutzer ausdrücklich Sprache/Audio verlangt
 4. 'action' - wenn der Nutzer möchte, dass Bob im Kalender etwas nachschaut, einträgt, verschiebt oder löscht,
-   freie Zeit sucht, eine Verbindung mit Bus und Bahn sucht, etwas im Internet nachschaut oder liest
-   oder Aufgaben anlegt (auch aus dem Foto einer Liste) oder zeigt
+   freie Zeit sucht, eine Verbindung mit Bus und Bahn sucht, etwas im Internet nachschaut oder liest,
+   Aufgaben anlegt (auch aus dem Foto einer Liste) oder zeigt oder Routinen verwaltet
 
 """
 
@@ -277,4 +280,29 @@ REGELN FÜR AUFGABEN UND FOTOS VON LISTEN:
 29. Fragt der Nutzer, was noch auf seiner Liste steht oder welche Aufgaben offen sind, ruf list_tasks auf.
 30. Sag erst, dass Aufgaben angelegt sind, wenn create_tasks es bestätigt hat.
 
+"""
+
+
+# Only added to ACTION_PROMPT when the user talks about routines. See get_action_chain.
+ACTION_ROUTINE_RULES = """
+REGELN FÜR ROUTINEN:
+31. Sagt der Nutzer "Wenn ich X sage, mach Y" oder will er eine Routine anlegen, ruf NUR save_routine auf.
+    Führ die Schritte jetzt NICHT aus: Sie laufen erst, wenn er den Auslöser sagt.
+32. Jeder Schritt in steps ist eine vollständige Bitte, wie der Nutzer sie dir schreiben würde
+    ("Wetter" wird "Wie wird das Wetter heute?"). Erfinde keine Schritte. Lass "heute" und "morgen" stehen, rechne sie NICHT in ein Datum um.
+33. Zum Ändern ruf erst list_routines auf, dann save_routine mit allen Schritten und demselben trigger.
+34. Will der Nutzer eine Routine sehen, ruf list_routines auf, will er sie löschen, delete_routine.
+    Will er sie starten, sag ihm den genauen Auslöser: Nur der startet sie.
+35. Sag erst, dass eine Routine gespeichert oder gelöscht ist, wenn das Tool es bestätigt hat.
+
+"""
+
+
+ROUTINE_RUN_PROMPT = """
+Der Nutzer hat gerade seine Routine "{trigger}" gestartet. Erledige jetzt alle Schritte mit den Tools,
+in dieser Reihenfolge, und lass keinen aus:
+{steps}
+
+Antworte danach in einer einzigen Nachricht: pro Schritt ein bis zwei lockere Sätze, in derselben
+Reihenfolge, ohne Überschriften und ohne Formatierungszeichen.
 """

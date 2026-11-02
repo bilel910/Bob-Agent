@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     TIMEZONE: str = "Europe/Berlin"   # change to your own, e.g. "Europe/Paris"
 
     SHORT_TERM_MEMORY_DB_PATH: str = "/app/data/memory.db"
+    ROUTINES_DB_PATH: str = "/app/data/routines.db"
+    # Every web search in a routine adds ~900 tokens to the call that writes the answer,
+    # which was 6000 tokens at 5 searches. A request over the model's 8000 tokens/min
+    # is rejected outright, not delayed, so this keeps a margin.
+    ROUTINE_MAX_STEPS: int = 5
 
 
 settings = Settings()

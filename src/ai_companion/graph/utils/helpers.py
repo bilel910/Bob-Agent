@@ -2,25 +2,14 @@ import re
 from functools import lru_cache
 
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableConfig
 from langchain_groq import ChatGroq
 
+from ai_companion.core.session import get_session_id
 from ai_companion.core.structured_output import get_structured_runnable
 from ai_companion.modules.image.image_to_text import ImageToText
 from ai_companion.modules.image.text_to_image import TextToImage
 from ai_companion.modules.speech import TextToSpeech
 from ai_companion.settings import settings
-
-
-def get_session_id(config: RunnableConfig) -> str:
-    """Return the id identifying whose conversation this is.
-
-    Long-term memories are scoped to this value, so it must never be empty: an
-    empty scope would mix every user's memories back together. Falls back to
-    "default" for runs started without a thread_id (e.g. LangGraph Studio).
-    """
-    thread_id = ((config or {}).get("configurable") or {}).get("thread_id")
-    return str(thread_id) if thread_id is not None else "default"
 
 
 def chat_history(messages: list, keep_current_tool_calls: bool = False) -> list:
@@ -43,6 +32,15 @@ def chat_history(messages: list, keep_current_tool_calls: bool = False) -> list:
             continue
         history.append(message)
     return history
+
+
+def pending_tool_calls(messages: list) -> list:
+    """The tool calls of the last AI message that have no result yet."""
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i].type == "ai":
+            answered = {m.tool_call_id for m in messages[i + 1:] if m.type == "tool"}
+            return [call for call in messages[i].tool_calls if call["id"] not in answered]
+    return []
 
 
 @lru_cache(maxsize=8)
@@ -120,4 +118,5 @@ __all__ = [
     "get_text_to_speech_module",
     "remove_asterisk_content",
     "get_pending_question",
+    "pending_tool_calls",
 ]

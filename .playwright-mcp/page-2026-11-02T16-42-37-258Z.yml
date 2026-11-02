@@ -1,0 +1,35 @@
+- generic [ref=f2e5]:
+  - generic [ref=f2e6]:
+    - button [ref=f2e9] [cursor=pointer]
+    - generic [ref=f2e10]:
+      - button [ref=f2e11] [cursor=pointer]
+      - button "Toggle theme" [ref=f2e13] [cursor=pointer]
+  - generic [ref=f2e18]:
+    - generic [ref=f2e21]:
+      - article [ref=f2e46]: Guten Morgen!
+      - generic [ref=f2e66]:
+        - img "Avatar for Bob" [ref=f2e69]
+        - generic [ref=f2e70]:
+          - generic [ref=f2e73]:
+            - article [ref=f2e74]: "Moin! Hier ist dein Morgen-Update:"
+            - article [ref=f2e75]: Das Wetter in Berlin ist heute eher grau und kühl, mit Temperaturen um die 8 bis 11 Grad und etwas Regenrisiko, also Jacke nicht vergessen.
+            - article [ref=f2e76]: Deine Termine für heute konnte ich leider nicht abrufen, da es ein technisches Problem mit der Kalender-Verbindung gab.
+            - article [ref=f2e77]: In den News steht heute vor allem, dass die "Gen Z regelt"-Proteste in mehreren deutschen Städten wie Berlin und Frankfurt in Gewalt ausgeartet sind, während die deutsche Industrie im Oktober weiter zugelegt hat.
+          - button [ref=f2e79] [cursor=pointer]
+      - article [ref=f2e94]: Welche Routinen habe ich?
+      - generic [ref=f2e101]:
+        - img "Avatar for Bob" [ref=f2e104]
+        - generic [ref=f2e105]:
+          - generic [ref=f2e108]:
+            - article [ref=f2e109]: "Du hast genau eine Routine gespeichert:"
+            - article [ref=f2e110]: Wenn du "Guten Morgen" sagst, läuft sie an und fragt nach dem Wetter in Berlin, deinen heutigen Terminen und den wichtigsten News des Tages.
+          - button [ref=f2e112] [cursor=pointer]
+      - article [ref=f2e124]: Lösch die Routine Guten Morgen
+    - generic [ref=f2e49]:
+      - generic [ref=f2e50]:
+        - textbox "..." [active] [ref=f2e52]
+        - generic [ref=f2e53]:
+          - generic [ref=f2e55]:
+            - button [disabled]
+          - button [ref=f2e58] [cursor=pointer]
+      - article [ref=f2e127]: ...

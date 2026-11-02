@@ -1,0 +1,16 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - button [ref=e9] [cursor=pointer]
+    - generic [ref=e10]:
+      - button [ref=e11] [cursor=pointer]
+      - button "Toggle theme" [ref=e13] [cursor=pointer]
+  - generic [ref=e22]:
+    - img "logo" [ref=e23]
+    - generic [ref=e24]:
+      - textbox "..." [active] [ref=e26]
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - button [ref=e30] [cursor=pointer]
+          - button [ref=e32] [cursor=pointer]
+        - generic [ref=e33]:
+          - button [disabled]

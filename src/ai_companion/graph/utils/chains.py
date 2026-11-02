@@ -2,7 +2,7 @@ from groq import BadRequestError
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from pydantic import BaseModel, Field
 
-from ai_companion.core.prompts import CHARACTER_CARD_PROMPT, ROUTER_PROMPT, ACTION_PROMPT
+from ai_companion.core.prompts import ACTION_ROUTINE_RULES, CHARACTER_CARD_PROMPT, ROUTER_PROMPT, ACTION_PROMPT
 from ai_companion.graph.utils.helpers import (
     AsteriskRemovalParser,
     get_chat_model,
@@ -11,6 +11,7 @@ from ai_companion.graph.utils.helpers import (
 )
 
 from ai_companion.modules.calendar.tools import CALENDAR_TOOLS
+from ai_companion.modules.routines.tools import ROUTINE_TOOLS
 from ai_companion.modules.tasks.tools import TASK_TOOLS
 from ai_companion.modules.transport.tools import TRANSPORT_TOOLS
 from ai_companion.modules.web_search.tools import WEB_SEARCH_TOOLS
@@ -54,16 +55,25 @@ def get_character_response_chain(summary: str = ""):
     return prompt | model | AsteriskRemovalParser()
 
 
-def get_action_chain(summary: str = "", force_tool: bool = False):
+def get_action_chain(
+    summary: str = "", force_tool: bool = False, use_tools: bool = True, manage_routines: bool = False
+):
     # bind_tools sends the tool schemas (the JSON you printed in Lesson 2) with every request.
     # force_tool makes the model call a tool instead of answering from memory: left to
     # choose, it often replied "Erledigt!" without ever calling schedule_meeting.
-    model = get_chat_model(temperature=0.2).bind_tools(
-        ACTION_TOOLS, tool_choice="required" if force_tool else "auto")
+    # use_tools=False leaves the schemas out when only the answer is left to write. They
+    # are about 2000 tokens, a quarter of what the model allows per minute.
+    # manage_routines adds what the model needs to save or change a routine. Only when the
+    # user talks about routines: it is ~500 tokens per call, and with them a plain weather
+    # question took 21s instead of 12s, because it waited that much longer on the rate limit.
+    model = get_chat_model(temperature=0.2)
+    if use_tools:
+        tools = ACTION_TOOLS + ROUTINE_TOOLS if manage_routines else ACTION_TOOLS
+        model = model.bind_tools(tools, tool_choice="required" if force_tool else "auto")
     # Now and then the model writes a broken tool call (a stray quote, wrong argument type)
     # and Groq answers 400 instead of passing it on. A second try almost always works.
     model = model.with_retry(retry_if_exception_type=(BadRequestError,), stop_after_attempt=2)
-    system_message = ACTION_PROMPT
+    system_message = ACTION_PROMPT + ACTION_ROUTINE_RULES if manage_routines else ACTION_PROMPT
 
     if summary:
         system_message += f"\n\nZusammenfassung des bisherigen Gesprächs zwischen Bob und dem Nutzer: {summary}"

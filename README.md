@@ -12,6 +12,7 @@ Bob is a multimodal AI companion built with [LangGraph](https://github.com/langc
   - Long-term: facts about you are extracted and stored in Qdrant, then recalled when they are relevant.
 - **Google Calendar**: lists your events for a day and schedules meetings. Bob asks for confirmation before he creates an event (human-in-the-loop via LangGraph `interrupt()`).
 - **Handwritten lists to tasks**: send a photo of a to-do or shopping list and Bob reads it (OCR, handwriting included), skips crossed-out lines and, after you confirm, adds each line to Google Tasks.
+- **Routines**: teach Bob a macro (_"Wenn ich 'Guten Morgen' sage → Wetter + Termine + News"_). He shows you the steps, saves them after your `ja`, and runs them all whenever you say the trigger.
 
 ## How it works
 
@@ -31,6 +32,8 @@ START ─┬─> memory_extraction_node ─┐
 
 - **router_node** picks one of `conversation`, `image`, `audio` or `action`.
 - **action_node** is an LLM with the calendar tools (`schedule_meeting`, `list_events`) bound. It loops through `tools_node` until it produces a text answer.
+- **tools_node** runs one tool call per graph step, so a `ja` to one tool's confirmation never repeats a tool that already ran.
+- A message that is exactly a saved routine trigger skips the router model and goes to `action_node`, which sees the routine's steps instead of the trigger words. So does a sentence that is clearly about routines ("Wenn ich X sage, ...", or the word "Routine").
 
 ## Tech stack
 
@@ -41,6 +44,7 @@ START ─┬─> memory_extraction_node ─┐
 | Image generation    | [Together AI](https://together.ai) (`FLUX.2-dev`), [Pollinations](https://pollinations.ai) fallback |
 | Long-term memory    | [Qdrant](https://qdrant.tech) + `sentence-transformers`                                             |
 | Short-term memory   | SQLite (LangGraph checkpointer)                                                                     |
+| Routines            | SQLite (its own file, `ROUTINES_DB_PATH`)                                                           |
 | Calendar, tasks     | Google Calendar API, Google Tasks API                                                               |
 | Image understanding | [Together AI](https://together.ai) (`nvidia/NVIDIA-Nemotron-3.5-Super-VL`)                          |
 | Interfaces          | [Chainlit](https://chainlit.io) (web), FastAPI webhook (WhatsApp Cloud API)                         |
@@ -58,6 +62,7 @@ src/ai_companion/
 │   ├── calendar/      # Google Calendar client and tools
 │   ├── image/         # text-to-image, image-to-text (incl. OCR)
 │   ├── memory/        # long-term memory (Qdrant)
+│   ├── routines/      # saved macros: SQLite store and tools
 │   ├── schedules/     # current-activity context
 │   ├── tasks/         # Google Tasks client and tools
 │   └── speech/        # speech-to-text, text-to-speech
@@ -139,10 +144,15 @@ Was steht am Montag in meinem Kalender?
 Plane ein Meeting 'Team Sync' am Montag um 16 Uhr für eine Stunde
 Schick mir eine Sprachnachricht!
 Zeig mir ein Bild von deinem Arbeitsplatz
+Wenn ich 'Guten Morgen' sage → Wetter + Termine + News
+Welche Routinen habe ich?
+Lösch die Routine Guten Morgen
 
 ````
 
 When Bob schedules a meeting, he asks first (_"Soll ich … in deinen Kalender eintragen? (ja/nein)"_). Answer `ja` to confirm, or say what you want to change.
+
+A routine runs when your whole message is its trigger: `Guten Morgen!` and `guten morgen, Bob` both work, `Guten Morgen, wie geht's?` is just a chat. A routine has at most 5 steps. Steps that write (a meeting, a task) still ask for your `ja` each time. To change or delete one, say the word "Routine" so Bob knows what you mean.
 
 ## Development
 
@@ -159,6 +169,8 @@ uv run python scripts/test_calendar.py        # Google Calendar connection
 uv run python scripts/test_calendar_tools.py  # calendar tools
 uv run python scripts/test_tasks.py           # photo of a list -> tasks
 uv run python scripts/test_action.py          # action node + tool loop end to end
+uv run python scripts/test_routines.py        # routines with a scripted model, no API calls
+uv run python scripts/test_routines.py --live # the same plus the real model (reads only)
 ```
 
 You can also open the graph in LangGraph Studio using [langgraph.json](langgraph.json).

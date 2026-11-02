@@ -3,6 +3,7 @@ import asyncio
 from langchain_core.messages import HumanMessage
 
 from ai_companion.graph.nodes import action_node, tools_node
+from ai_companion.graph.utils.helpers import pending_tool_calls
 
 TESTS = [
     "Was steht am 2026-09-30 an?",
@@ -27,10 +28,11 @@ async def run(text: str):
         for call in ai_message.tool_calls:       # the LLM's "request"
             print(f"🔧 {call['name']}({call['args']})")
 
-        tool_result = await tools_node.ainvoke({"messages": state["messages"]})
-        for msg in tool_result["messages"]:      # what the tool returned
-            print(f"📋 {msg.content}")
-        state["messages"].extend(tool_result["messages"])
+        while pending_tool_calls(state["messages"]):   # one tool at a time
+            tool_result = await tools_node(state, {})
+            for msg in tool_result["messages"]:  # what the tool returned
+                print(f"📋 {msg.content}")
+            state["messages"].extend(tool_result["messages"])
 
 
 async def main():

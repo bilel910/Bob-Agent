@@ -1,0 +1,16 @@
+- generic [ref=f3e5]:
+  - generic [ref=f3e6]:
+    - button [ref=f3e9] [cursor=pointer]
+    - generic [ref=f3e10]:
+      - button [ref=f3e11] [cursor=pointer]
+      - button "Toggle theme" [ref=f3e13] [cursor=pointer]
+  - generic [ref=f3e22]:
+    - img "logo" [ref=f3e23]
+    - generic [ref=f3e24]:
+      - textbox "..." [active] [ref=f3e26]
+      - generic [ref=f3e27]:
+        - generic [ref=f3e28]:
+          - button [ref=f3e30] [cursor=pointer]
+          - button [ref=f3e32] [cursor=pointer]
+        - generic [ref=f3e33]:
+          - button [disabled]

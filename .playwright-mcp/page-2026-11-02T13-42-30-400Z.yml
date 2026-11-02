@@ -1,0 +1,35 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - button [ref=e9] [cursor=pointer]
+    - generic [ref=e10]:
+      - button [ref=e11] [cursor=pointer]
+      - button "Toggle theme" [ref=e13] [cursor=pointer]
+  - generic [ref=e18]:
+    - generic [ref=e21]:
+      - article [ref=e46]: Wenn ich 'Guten Morgen' sage → Wetter in Berlin + Termine + News
+      - generic [ref=e66]:
+        - img "Avatar for Bob" [ref=e69]
+        - generic [ref=e70]:
+          - generic [ref=e73]:
+            - article [ref=e74]: "Soll ich diese Routine speichern? Wenn du 'Guten Morgen' sagst, mache ich:"
+            - list [ref=e75]:
+              - listitem [ref=e76]: Wie wird das Wetter heute in Berlin?
+              - listitem [ref=e77]: Welche Termine habe ich heute?
+              - listitem [ref=e78]: Was sind die wichtigsten News heute? (ja/nein)
+          - button [ref=e80] [cursor=pointer]
+      - article [ref=e95]: ja
+      - generic [ref=e102]:
+        - img "Avatar for Bob" [ref=e105]
+        - generic [ref=e106]:
+          - article [ref=e110]: Erledigt! Wenn du jetzt "Guten Morgen" sagst, hol ich dir direkt das Wetter in Berlin, deine Termine und die wichtigsten News.
+          - button [ref=e112] [cursor=pointer]
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - textbox "..." [active] [ref=e52]
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - button [ref=e81] [cursor=pointer]
+            - button [ref=e82] [cursor=pointer]
+          - generic [ref=e57]:
+            - button [disabled]
+      - article [ref=e113]: ...

@@ -1,0 +1,16 @@
+- generic [ref=f2e5]:
+  - generic [ref=f2e6]:
+    - button [ref=f2e9] [cursor=pointer]
+    - generic [ref=f2e10]:
+      - button [ref=f2e11] [cursor=pointer]
+      - button "Toggle theme" [ref=f2e13] [cursor=pointer]
+  - generic [ref=f2e18]:
+    - article [ref=f2e46]: Guten Morgen!
+    - generic [ref=f2e49]:
+      - generic [ref=f2e50]:
+        - textbox "..." [active] [ref=f2e52]
+        - generic [ref=f2e53]:
+          - generic [ref=f2e55]:
+            - button [disabled]
+          - button [ref=f2e58] [cursor=pointer]
+      - article [ref=f2e62]: ...

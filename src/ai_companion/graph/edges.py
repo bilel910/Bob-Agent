@@ -2,6 +2,7 @@ from langgraph.graph import END
 from typing_extensions import Literal
 
 from ai_companion.graph.state import AICompanionState
+from ai_companion.graph.utils.helpers import pending_tool_calls
 from ai_companion.settings import settings
 
 
@@ -45,3 +46,10 @@ def should_call_tools(
 
     # The LLM answered with text → finish like every other node
     return should_summarize_conversation(state)
+
+
+def should_run_next_tool(
+    state: AICompanionState,
+) -> Literal["tools_node", "action_node"]:
+    # tools_node runs one call at a time, so it loops until the LLM's whole batch is done
+    return "tools_node" if pending_tool_calls(state["messages"]) else "action_node"

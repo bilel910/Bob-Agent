@@ -1,0 +1,16 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - button [ref=e9] [cursor=pointer]
+    - generic [ref=e10]:
+      - button [ref=e11] [cursor=pointer]
+      - button "Toggle theme" [ref=e13] [cursor=pointer]
+  - generic [ref=e18]:
+    - article [ref=e46]: Wenn ich 'Guten Morgen' sage → Wetter in Berlin + Termine + News
+    - generic [ref=e49]:
+      - generic [ref=e50]:
+        - textbox "..." [active] [ref=e52]
+        - generic [ref=e53]:
+          - generic [ref=e55]:
+            - button [disabled]
+          - button [ref=e58] [cursor=pointer]
+      - article [ref=e62]: ...

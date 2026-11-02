@@ -1,15 +1,18 @@
 import os
+import re
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 from langchain_core.runnables import RunnableConfig
 
+from ai_companion.core.prompts import ROUTINE_RUN_PROMPT
 from ai_companion.graph.state import AICompanionState
 from ai_companion.graph.utils.chains import (
     get_character_response_chain,
     get_router_chain,
     get_action_chain,
-    ACTION_TOOLS
+    ACTION_TOOLS,
+    ROUTINE_TOOLS,
 )
 from ai_companion.graph.utils.helpers import (
     chat_history,
@@ -17,8 +20,10 @@ from ai_companion.graph.utils.helpers import (
     get_session_id,
     get_text_to_image_module,
     get_text_to_speech_module,
+    pending_tool_calls,
 )
 from ai_companion.modules.memory.long_term.memory_manager import get_memory_manager
+from ai_companion.modules.routines import Routine, store as routine_store
 from ai_companion.modules.schedules.context_generation import ScheduleContextGenerator
 from ai_companion.settings import settings
 from datetime import datetime
@@ -39,7 +44,15 @@ _AUDIO_CUES = (
     "hoeren", "vorlesen", "audio", "voice", "sprachi",
 )
 
-_ACTION_CUES = (
+# "Wenn ich 'Guten Morgen' sage, ...", "Welche Routinen habe ich?"
+_ROUTINE_CUES = ("routine", "makro", "macro", "wenn ich", "sobald ich", "immer wenn")
+
+# Sentences that can only be about routines skip the router model. Now and then it sent
+# one to the chat model, which replied "Erledigt!" without having saved anything. A false
+# match is harmless: saving a routine always asks first. "\b" keeps "Morgenroutine" out.
+_ROUTINE_REQUEST = re.compile(r"\b(?:routinen?|makros?|macros?)\b|\b(?:wenn|sobald) ich\b.+\bsage\b", re.IGNORECASE)
+
+_ACTION_CUES = _ROUTINE_CUES + (
     "termin", "meeting", "treffen", "kalender", "calendar", "schedule",
     "plan", "eintrag", "verabred", "was steht", "call",
     "verschieb", "änder", "aender", "umbuch", "verleg", "move", "reschedul", "update",
@@ -60,17 +73,30 @@ _WEEKDAYS = ["Montag", "Dienstag", "Mittwoch",
              "Donnerstag", "Freitag", "Samstag", "Sonntag"]
 
 
+def _last_user_text(state: AICompanionState) -> str:
+    for message in reversed(state["messages"]):
+        if message.type == "human":
+            return str(message.content)
+    return ""
+
+
 def _needs_router_llm(state: AICompanionState) -> bool:
     """Whether the last user message is worth asking the router model about."""
-    for message in reversed(state["messages"]):
-        if message.type != "human":
-            continue
-        text = str(message.content).lower()
-        return any(cue in text for cue in _IMAGE_CUES + _AUDIO_CUES + _ACTION_CUES)
-    return False
+    text = _last_user_text(state).lower()
+    return any(cue in text for cue in _IMAGE_CUES + _AUDIO_CUES + _ACTION_CUES)
 
 
-async def router_node(state: AICompanionState):
+def _routine_for(state: AICompanionState, config: RunnableConfig) -> Routine | None:
+    """The user's saved routine that their last message triggers, if any."""
+    return routine_store.find(get_session_id(config), _last_user_text(state))
+
+
+async def router_node(state: AICompanionState, config: RunnableConfig):
+    # Checked first and in code: "Guten Morgen" looks like small talk, so no word filter
+    # or model would ever send it to the action node.
+    if _routine_for(state, config) or _ROUTINE_REQUEST.search(_last_user_text(state)):
+        return {"workflow": "action"}
+
     if settings.ROUTER_FAST_PATH and not _needs_router_llm(state):
         return {"workflow": "conversation"}
 
@@ -222,12 +248,31 @@ async def action_node(state: AICompanionState, config: RunnableConfig):
     # the exchange before it (enough for follow-ups like "um 15 Uhr").
     messages = chat_history(state["messages"], keep_current_tool_calls=True)
     last_human = max((i for i, m in enumerate(messages) if m.type == "human"), default=0)
-    messages = messages[max(0, last_human - settings.ACTION_PREVIOUS_MESSAGES):]
+
+    routine = _routine_for(state, config)
+    if routine:
+        # A routine is a macro: the model sees the saved steps instead of "Guten Morgen",
+        # and no older messages it could answer from instead of calling the tools.
+        steps = "\n".join(f"{number}. {step}" for number, step in enumerate(routine.steps, start=1))
+        request = HumanMessage(content=ROUTINE_RUN_PROMPT.format(trigger=routine.trigger, steps=steps))
+        messages = [request] + messages[last_human + 1:]
+    else:
+        messages = messages[max(0, last_human - settings.ACTION_PREVIOUS_MESSAGES):]
 
     # The router only sends real tool requests here, so the first step of a turn must
-    # call a tool. Once tool results are in, the model may answer in text.
-    first_step = not any(m.type == "tool" for m in messages)
-    chain = get_action_chain(state.get("summary", ""), force_tool=first_step)
+    # call a tool. Once tool results are in, the model may answer in text. A routine needs
+    # one result per step: forcing until then means the model cannot skip a step, and
+    # because the count only goes up, it cannot loop forever either.
+    tool_results = sum(m.type == "tool" for m in messages)
+    results_needed = len(routine.steps) if routine else 1
+    chain = get_action_chain(
+        "" if routine else state.get("summary", ""),
+        force_tool=tool_results < results_needed,
+        # A finished routine only has its answer left to write, which saves the tokens
+        # of the tool schemas. Without that, nearly every run hits the rate limit.
+        use_tools=not routine or tool_results < results_needed,
+        manage_routines=any(cue in _last_user_text(state).lower() for cue in _ROUTINE_CUES),
+    )
 
     response = await chain.ainvoke(
         {
@@ -245,4 +290,15 @@ async def action_node(state: AICompanionState, config: RunnableConfig):
 
 
 # Runs whatever tool calls the LLM asked for and returns the results as ToolMessages
-tools_node = ToolNode(ACTION_TOOLS)
+_run_tools = ToolNode(ACTION_TOOLS + ROUTINE_TOOLS)
+
+
+async def tools_node(state: AICompanionState, config: RunnableConfig):
+    """Run the next tool call that has no result yet, one per graph step.
+
+    A routine makes the model ask for several tools at once. As one graph step, every
+    "ja" to an interrupt() restarts all of them: with two confirmations in a batch, the
+    first calendar entry was created twice. A finished graph step is never repeated.
+    """
+    next_call = pending_tool_calls(state["messages"])[0]
+    return await _run_tools.ainvoke({"messages": [AIMessage(content="", tool_calls=[next_call])]}, config)

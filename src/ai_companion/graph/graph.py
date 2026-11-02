@@ -6,6 +6,7 @@ from ai_companion.graph.edges import (
     select_workflow,
     should_summarize_conversation,
     should_call_tools,
+    should_run_next_tool,
 )
 from ai_companion.graph.nodes import (
     audio_node,
@@ -53,7 +54,7 @@ def create_workflow_graph():
     graph_builder.add_edge("context_injection_node", "memory_injection_node")
 
     # ← this edge creates the loop
-    graph_builder.add_edge("tools_node", "action_node")
+    graph_builder.add_conditional_edges("tools_node", should_run_next_tool)
 
     # Then proceed to appropriate response node
     graph_builder.add_conditional_edges(

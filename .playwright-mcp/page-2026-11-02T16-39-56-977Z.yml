@@ -1,0 +1,15 @@
+- generic [ref=f1e5]:
+  - generic [ref=f1e6]:
+    - button [ref=f1e9] [cursor=pointer]
+    - generic [ref=f1e10]:
+      - button [ref=f1e11] [cursor=pointer]
+      - button "Toggle theme" [ref=f1e13] [cursor=pointer]
+  - generic [ref=f1e22]:
+    - img "logo" [ref=f1e23]
+    - generic [ref=f1e24]:
+      - textbox "..." [active] [ref=f1e26]: Guten Morgen!
+      - generic [ref=f1e27]:
+        - generic [ref=f1e28]:
+          - button [ref=f1e30] [cursor=pointer]
+          - button [ref=f1e32] [cursor=pointer]
+        - button [ref=f1e34] [cursor=pointer]
